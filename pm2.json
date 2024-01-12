@@ -1,0 +1,21 @@
+{
+
+    "name": "chatbot-mrl",
+
+    "script": "npm",
+
+    "args": [
+
+        "start"
+
+        ],
+
+    "error_file":"",
+
+    "out_file":"",
+
+    "exec_interpreter": "",
+
+    "exec_mode": "fork"
+
+}
