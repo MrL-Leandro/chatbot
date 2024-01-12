@@ -1,46 +1,3 @@
-# About
-
-A personnal chatbot develop use [Wechaty](https://github.com/wechaty/wechaty/)
-
-# Features
-
-1. 单问单答：如果只想让AI回答问题，请直接输入问题，例如【马化腾是谁】；
-2. 生成图片：如果要生成图片请说：【$生成图片 描述】，例如【$生成图片 打篮球的鸡】；
-3. 查询生成图片任务状态:输入【$查询任务状态 taskId】，查询生成图片任务状态，例如【$查询任务状态 16999422】；
-4. 获取生成的图片:输入【$获取图片 taskId】，获取生成的图片，例如【$获取图片 16999422】；
-5. 查询余额：输入【$查询余额】可以查询当前服务的余额；
-6. 连续聊天：输入【$开始聊天】，即可开始连续聊天，输入【$结束聊天】，即可结束聊天；
-7. 查询目前用的是哪个服务：输入【$当前服务】；
-8. 帮助:输入【帮助】，查看当前帮助信息；
-9. 远程打开家里电脑：输入【$打开电脑】(管理员)。
-10. 远程关闭家里电脑：输入【$关闭电脑】(管理员)。
-请注意，如果用的是百度AI作画或者阿里通义万象生成图片会返回taskId，然后用3的命令用taskId去查询任务状态，用4的命令去获取图片。
-请注意，连续聊天功能会耗费大量的tokens，请节制使用。
-
-
-
-# How to use
-
-## Step 1: Clone this Repository
-
-```bash
-git clone https://github.com/MrL-Leandro/chatbot.git
-cd chatbot
-```
-
-## Step 2: Install Dependencies
-
-You need to install dependencies by running the command below.
-
-```bash
-npm install
-```
-
-## Step 3: change configuration
-
-edit file `/src/config.js`,add your own key or token or whatever 
-
-```js
 const config = {
     // 全局设置
     server: {
@@ -186,11 +143,3 @@ const config = {
 };
 
 module.exports = config;
-```
-
-## Step 4: Run the Bot
-
-```bash
-npm start
-```
-

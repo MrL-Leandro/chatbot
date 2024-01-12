@@ -1,0 +1,28 @@
+{
+  "name": "chatbot-mrl",
+  "version": "1.0.0",
+  "description": "a chatbot for js",
+  "main": "chatbot.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "cross-env WECHATY_LOG=info WECHATY_PUPPET=wechaty-puppet-wechat4u node src/chatbot.js"
+  },
+  "author": "mrl",
+  "license": "ISC",
+  "dependencies": {
+    "dgram": "^1.0.1",
+    "file-box": "^1.5.5",
+    "net": "^1.0.2",
+    "qrcode-terminal": "^0.12.0",
+    "ssh2": "^1.15.0",
+    "superagent": "^8.1.2",
+    "wechaty": "^1.20.2",
+    "wechaty-puppet-wechat4u": "^1.14.13"
+  },
+  "devDependencies": {
+    "cross-env": "^7.0.3"
+  },
+  "keywords": [
+    "chatbot"
+  ]
+}
