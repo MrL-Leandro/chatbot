@@ -2,7 +2,7 @@
  * openai服务，chatgpt
  */
 
-const notifBot = require('./notify-bot')
+const notifBot = require('./notifyBot')
 const config = require("./config")
 const superagent = require('superagent');
 const dateutils = require('./dateutils');

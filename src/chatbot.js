@@ -12,11 +12,9 @@ const {
 const { FileBox } = require('file-box')
 const qrcodeTerminal = require('qrcode-terminal')
 const config = require("./config");
-const notifBot = require('./notify-bot');
-const chatgpt = require('./chatgpt');
-const baidu = require('./baidu');
-const ali = require('./ali');
-const pcControl = require('./pc-control');
+const notifBot = require('./notifyBot');
+const pcControl = require('./pcControl');
+const serverChoose = require('./serverChoose');
 
 //帮助信息
 const helpMsg = "1.单问单答：如果只想让AI回答问题，请直接输入问题，例如【马化腾是谁】；\n" +
@@ -39,6 +37,8 @@ var user_status = {}
 var user_time = {}
 //设置30分钟过期时间
 const EXPIRED_TIME = 1000 * 60 * 30
+//聊天服务
+const server = serverChoose.getServer()
 
 /**
  *  扫描二维码回调函数
@@ -86,19 +86,6 @@ async function onMessage(msg) {
     let result
     //是否回复图片
     let isImgBack = false
-    //生成图片、获取图片回调函数
-    let getImgCallback = v => {
-        if (v != undefined && v != null && v.length > 0) {
-            isImgBack = true
-            result = []
-            v.forEach(item => {
-                const fileBox = FileBox.fromUrl(item)
-                result.push(fileBox)
-            })
-        } else {
-            result = "生成图片失败，请重试。"
-        }
-    }
 
     log.info('收到联系人消息，联系人名称:' + contact.name() + ",联系人类型:" + contact.type())
     log.info('联系人类型:0=未知,1=个人,2=公众号,3=企业')
@@ -132,15 +119,7 @@ async function onMessage(msg) {
             delete user_time.userId
             result = "已关闭连续聊天！"
         } else if (message === '$查询余额') {
-            if (config.server.choose == 1) {
-                await chatgpt.queryBalance().then(v => result = v)
-            } else if (config.server.choose == 2) {
-                await baidu.queryBalance().then(v => result = v)
-            } else if (config.server.choose == 3) {
-                await ali.queryBalance().then(v => result = v)
-            } else {
-                result = "未知服务"
-            }
+            await server.queryBalance().then(v => result = v)
         } else if (message === '$当前服务') {
             if (config.server.choose == 1) {
                 result = "当前服务为openAI的chatgpt和生成图片"
@@ -152,61 +131,76 @@ async function onMessage(msg) {
                 result = "未知服务"
             }
         } else if (message.startsWith('$生成图片')) {
-            //生成图片(taskid)回调函数
-            let tmp = v => {
-                if (v != undefined && v != null && v.length > 0) {
-                    result = "正在生成图片，taskId:【" + v[0] + "】，稍后可以用taskId去获取图片。"
-                } else {
-                    result = "生成图片失败,可能对应的服务不支持生成图片。"
-                }
-            }
+            //拿到提示词
             let prompt = message.substr(6)
-            if (config.server.choose == 1) {
-                await chatgpt.generatIMG(prompt).then(getImgCallback)
-            } else if (config.server.choose == 2) {
-                await baidu.generatIMG(prompt).then(tmp)
-            } else if (config.server.choose == 3) {
-                await ali.generatIMG(prompt).then(tmp)
+            if (serverChoose.isTaskImg()) {
+                //百度-阿里
+                await server.generatIMG(prompt).then(v => {
+                    if (v != undefined && v != null && v.length > 0) {
+                        result = "正在生成图片，taskId:【" + v[0] + "】，稍后可以用taskId去获取图片。"
+                    } else {
+                        result = "生成图片失败,可能对应的服务不支持生成图片。"
+                    }
+                })
             } else {
-                result = "未知服务"
+                //openai
+                await server.generatIMG(prompt).then(v => {
+                    if (v != undefined && v != null && v.length > 0) {
+                        isImgBack = true
+                        result = []
+                        v.forEach(item => {
+                            const fileBox = FileBox.fromUrl(item)
+                            result.push(fileBox)
+                        })
+                    } else {
+                        result = "生成图片失败，请重试。"
+                    }
+                })
             }
         } else if (message.startsWith('$查询任务状态')) {
-            //查询任务状态回调函数
-            let tmp = v => {
-                if (v === 'SUCCEEDED') {
-                    result = "任务成功，请用【$获取图片 taskId】获取图片。"
-                } else if (v === 'RUNNING') {
-                    result = "任务正在处理，请稍后再重新查询。"
-                } else if (v === 'PENDING') {
-                    result = "任务正在排队，请稍后再重新查询。"
-                } else if (v === 'FAILED') {
-                    result = "任务失败！"
-                } else if (v === 'UNKNOWN') {
-                    result = "任务不存在，请重新生成图片。"
-                } else {
-                    result = "任务异常，请重新生成图片。"
-                }
-            }
+            //拿到任务id
             let taskId = message.substring(8);
-            if (config.server.choose == 1) {
-                result = "只有百度AI作画或者阿里通义万象生成图片需要用taskId去获取图片，您可以输入【$当前服务】来查询当前使用的的服务。"
-            } else if (config.server.choose == 2) {
-                await baidu.getImgTaskStatus(taskId).then(tmp)
-            } else if (config.server.choose == 3) {
-                await ali.getImgTaskStatus(taskId).then(tmp)
+            if (serverChoose.isTaskImg()) {
+                //百度-阿里
+                await server.getImgTaskStatus(taskId).then(v => {
+                    if (v === 'SUCCEEDED') {
+                        result = "任务成功，请用【$获取图片 " + taskId + "】获取图片。"
+                    } else if (v === 'RUNNING') {
+                        result = "任务正在处理，请稍后再重新查询。"
+                    } else if (v === 'PENDING') {
+                        result = "任务正在排队，请稍后再重新查询。"
+                    } else if (v === 'FAILED') {
+                        result = "任务失败！"
+                    } else if (v === 'UNKNOWN') {
+                        result = "任务不存在，请重新生成图片。"
+                    } else {
+                        result = "任务异常，请重新生成图片。"
+                    }
+                })
             } else {
-                result = "未知服务"
+                //openai
+                result = "只有百度AI作画或者阿里通义万象生成图片需要用taskId去获取图片，您可以输入【$当前服务】来查询当前使用的的服务。"
             }
         } else if (message.startsWith('$获取图片')) {
+            //拿到任务id
             let taskId = message.substring(6);
-            if (config.server.choose == 1) {
-                result = "只有百度AI作画或者阿里通义万象生成图片需要用taskId去获取图片，你可以输入【$当前服务】来查询当前使用的的服务。"
-            } else if (config.server.choose == 2) {
-                await baidu.getImg(taskId).then(getImgCallback)
-            } else if (config.server.choose == 3) {
-                await ali.getImg(taskId).then(getImgCallback)
+            if (serverChoose.isTaskImg()) {
+                //百度-阿里
+                await server.getImg(taskId).then(v => {
+                    if (v != undefined && v != null && v.length > 0) {
+                        isImgBack = true
+                        result = []
+                        v.forEach(item => {
+                            const fileBox = FileBox.fromUrl(item)
+                            result.push(fileBox)
+                        })
+                    } else {
+                        result = "生成图片失败，请重试。"
+                    }
+                })
             } else {
-                result = "未知服务"
+                //openai
+                result = "只有百度AI作画或者阿里通义万象生成图片需要用taskId去获取图片，您可以输入【$当前服务】来查询当前使用的的服务。"
             }
         } else if (message === '$打开电脑') {
             if (alias === 'admin') {
@@ -241,16 +235,7 @@ async function onMessage(msg) {
                 delete user_messages.userId
                 messages = [];
                 messages.push({ role: "user", content: message });
-                if (config.server.choose == 1) {
-                    await chatgpt.chat(messages).then(v => result = "连续聊天已关闭。\n" + v)
-                } else if (config.server.choose == 2) {
-                    await baidu.chat(messages).then(v => result = "连续聊天已关闭。\n" + v)
-                } else if (config.server.choose == 3) {
-                    await ali.chat(messages).then(v => result = "连续聊天已关闭。\n" + v)
-                } else {
-                    result = "未知服务"
-                }
-
+                await server.chat(messages).then(v => result = "连续聊天已关闭。\n" + v)
             } else {
                 //处于连续聊天状态，从user_messages里拿历史记录
                 messages = user_messages.userId
@@ -258,8 +243,7 @@ async function onMessage(msg) {
                     messages = []
                 }
                 messages.push({ role: "user", content: message })
-                //获取ai返回消息回调函数
-                let tmp = v => {
+                await server.chat(messages).then(v => {
                     if (v == undefined || v == null || v == "") {
                         result = "服务异常，请稍后再试！"
                     } else {
@@ -267,17 +251,7 @@ async function onMessage(msg) {
                         user_messages.userId = messages
                         result = v
                     }
-                }
-                if (config.server.choose == 1) {
-                    await chatgpt.chat(messages).then(tmp)
-                } else if (config.server.choose == 2) {
-                    await baidu.chat(messages).then(tmp)
-                } else if (config.server.choose == 3) {
-                    await ali.chat(messages).then(tmp)
-                } else {
-                    result = "未知服务"
-                }
-
+                })
             }
         } else {
             //获取ai的返回信息,单问单答
@@ -288,20 +262,9 @@ async function onMessage(msg) {
                     content: message
                 }
             ]
-            //获取AI返回消息回调函数
-            let tmp = v => {
+            await server.chat(messages).then(v => {
                 result = v
-            }
-            if (config.server.choose == 1) {
-                await chatgpt.chat(messages).then(tmp)
-            } else if (config.server.choose == 2) {
-                await baidu.chat(messages).then(tmp)
-            } else if (config.server.choose == 3) {
-                await ali.chat(messages).then(tmp)
-            } else {
-                result = "未知服务"
-            }
-
+            })
         }
     }
     //如果是发送图片，result是列表，遍历发送图片
